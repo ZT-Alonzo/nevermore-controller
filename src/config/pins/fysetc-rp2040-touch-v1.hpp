@@ -10,9 +10,10 @@
 #error "`PICO_BOARD` is likely incorrect, `FYSETC_RP2040_TOUCH_V1` is not defined"
 #endif
 
-// Disable persistence until the pins are finalised.
+// Persistence re-enabled locally: FYSETC's pin layout is finalised in shipped
+// hardware; the upstream guard was a beta-pin protection.
 #undef NEVERMORE_SETTINGS_PERSISTENCE
-#define NEVERMORE_SETTINGS_PERSISTENCE 0
+#define NEVERMORE_SETTINGS_PERSISTENCE 1
 
 namespace nevermore {
 

@@ -27,7 +27,9 @@ set(FREERTOS_PORT
     "GCC_POSIX"
     CACHE STRING "" FORCE
 ) # Select the native compile PORT
-set(FREERTOS_KERNEL_PATH "${CMAKE_BINARY_DIR}/_deps/freertos_kernel-src")
+if(NOT DEFINED FREERTOS_KERNEL_PATH)
+  set(FREERTOS_KERNEL_PATH "${CMAKE_BINARY_DIR}/_deps/freertos_kernel-src")
+endif()
 
 if(CMAKE_CROSSCOMPILING) # Select the cross-compile PORT
   set(FREERTOS_PORT
