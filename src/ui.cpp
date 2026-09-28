@@ -156,18 +156,68 @@ void fan_power_arc_colour_update() {
             LV_PART_INDICATOR | int(LV_STATE_DEFAULT));
 }
 
+void voc_arc_update() {
+    if (!ui.voc_arc) return;
+
+    auto const& state = nevermore::sensors::g_sensors.with_fallbacks();
+    if (state.voc_index_exhaust == BLE::NOT_KNOWN) {
+        lv_arc_set_value(ui.voc_arc, 0);
+        lv_obj_set_style_arc_color(
+                ui.voc_arc, lv_color_hex(0x404040), LV_PART_INDICATOR | int(LV_STATE_DEFAULT));
+        return;
+    }
+
+    auto const voc = state.voc_index_exhaust.value_or(0);
+    auto const onset = settings::g_active.fan_policy_env.voc_passive_max.value_or(250);
+
+    // same zones the (now removed) chart used: clean / elevated / fan should be running
+    auto colour = 0x00FF00;
+    if (voc >= onset) {
+        colour = 0xFF0000;
+    } else if (voc >= 100) {
+        colour = 0xFFFF00;
+    }
+
+    lv_arc_set_value(ui.voc_arc, lv_coord_t(min(voc, 500.0)));
+    lv_obj_set_style_arc_color(ui.voc_arc, lv_color_hex(colour), LV_PART_INDICATOR | int(LV_STATE_DEFAULT));
+}
+
+// Left/right halves of the inner ring share this scale split; temperature ramps blue -> red across it.
+constexpr double TEMP_ARC_MIN = 10;
+constexpr double TEMP_ARC_MAX = 40;
+
+void temp_arc_update() {
+    if (!ui.temp_arc) return;
+
+    auto const& state = nevermore::sensors::g_sensors.with_fallbacks();
+    if (state.temperature_exhaust == BLE::NOT_KNOWN) {
+        lv_arc_set_value(ui.temp_arc, lv_coord_t(TEMP_ARC_MIN));
+        lv_obj_set_style_arc_color(
+                ui.temp_arc, lv_color_hex(0x404040), LV_PART_INDICATOR | int(LV_STATE_DEFAULT));
+        return;
+    }
+
+    auto const t = state.temperature_exhaust.value_or(TEMP_ARC_MIN);
+    auto const f = clamp((t - TEMP_ARC_MIN) / (TEMP_ARC_MAX - TEMP_ARC_MIN), 0.0, 1.0);
+
+    lv_arc_set_value(ui.temp_arc, lv_coord_t(t));
+    // hue 240 = blue -> 0 = red, passing through the usual cyan/green/yellow on the way
+    lv_obj_set_style_arc_color(ui.temp_arc, lv_color_hsv_to_rgb(uint16_t(240 - 240 * f), 100, 100),
+            LV_PART_INDICATOR | int(LV_STATE_DEFAULT));
+}
+
 void display_update_labels(auto*) {
     auto const& state = nevermore::sensors::g_sensors.with_fallbacks();
 
     label_set(ui.pressure_in, "--- hPa", "%.1f hPa", state.pressure_intake, 1e2);
     label_set(ui.pressure_out, "--- hPa", "%.1f hPa", state.pressure_exhaust, 1e2);
-    label_set(ui.humidity_in, "--- %", "%2.1f%%", state.humidity_intake);
-    label_set(ui.humidity_out, "--- %", "%2.1f%%", state.humidity_exhaust);
+    label_set(ui.humidity_in, "---%", "%.1f%%", state.humidity_intake);
+    label_set(ui.humidity_out, "---%", "%.1f%%", state.humidity_exhaust);
 
     label_set(ui.voc_in, "---", "%.0f", state.voc_index_intake);
     label_set(ui.voc_out, "---", "%.0f", state.voc_index_exhaust);
-    label_set(ui.temp_in, "--- c", "%.1fc", state.temperature_intake);
-    label_set(ui.temp_out, "--- c", "%.1fc", state.temperature_exhaust);
+    label_set(ui.temp_in, "---°C", "%.1f°C", state.temperature_intake);
+    label_set(ui.temp_out, "---°C", "%.1f°C", state.temperature_exhaust);
 
     label_set(ui.fan_power, "", "%.0f%%", BLE::Percentage8(ceil(gatt::fan::fan_power())));
     label_set(ui.fan_rpm, "", "%.0f", gatt::fan::fan_rpm());
@@ -176,6 +226,9 @@ void display_update_labels(auto*) {
         lv_arc_set_percent(ui.fan_power_arc, gatt::fan::fan_power() / 100);
         fan_power_arc_colour_update();
     }
+
+    voc_arc_update();
+    temp_arc_update();
 }
 
 void display_update_plot(auto*) {
@@ -476,14 +529,12 @@ lv_obj_t* startup_ui(NevermoreDisplayUI const& ui) {
 bool init() {
     using enum settings::DisplayUI;
     switch (settings::g_active.display_ui) {
-    case CIRCLE_240_CLASSIC: {
-        ui = circle_240::classic();
-    } break;
-    case CIRCLE_240_SMALL_PLOT: {
-        ui = circle_240::small_plot();
-    } break;
+    // CLASSIC and NO_PLOT were retired and their sources deleted. Their setting values are still
+    // accepted so a controller that has one of them persisted keeps working.
+    case CIRCLE_240_CLASSIC:
+    case CIRCLE_240_SMALL_PLOT:
     case CIRCLE_240_NO_PLOT: {
-        ui = circle_240::no_plot();
+        ui = circle_240::small_plot();
     } break;
 
     default: {
@@ -510,13 +561,14 @@ bool init() {
                     gatt::fan::fan_power_override(gatt::fan::fan_power_override() == BLE::NOT_KNOWN
                                                           ? BLE::Percentage8(100)
                                                           : BLE::NOT_KNOWN);
+                    fan_power_arc_colour_update();
                 },
                 LV_EVENT_LONG_PRESSED, {});
     }
 
     if (ui.fan_power_arc) {
         lv_obj_add_event_cb(ui.fan_power_arc,
-                [](lv_event_t* e) {
+                [](lv_event_t*) {
                     auto state = lv_obj_get_state(ui.fan_power_arc);
                     if (!(state & LV_STATE_PRESSED)) return;
 

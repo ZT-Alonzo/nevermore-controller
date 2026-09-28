@@ -27,6 +27,8 @@ typedef struct NevermoreDisplayUI {
     /* lv_label_t */ lv_obj_t* humidity_out;
     /* lv_label_t */ lv_obj_t* voc_in;
     /* lv_label_t */ lv_obj_t* voc_out;
+    /* lv_arc_t */ lv_obj_t* voc_arc;
+    /* lv_arc_t */ lv_obj_t* temp_arc;
     /* lv_chart_t */ lv_obj_t* chart;
     /* lv_label_t */ lv_obj_t* chart_max;
     /* lv_label_t */ lv_obj_t* chart_x_axis_scale;

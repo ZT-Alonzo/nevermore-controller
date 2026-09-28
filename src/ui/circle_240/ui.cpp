@@ -13,8 +13,6 @@
 #endif
 
 extern "C" {
-NevermoreDisplayUI nevermore_ui_screen_circle_240_classic();
-NevermoreDisplayUI nevermore_ui_screen_circle_240_no_plot();
 NevermoreDisplayUI nevermore_ui_screen_circle_240_small_plot();
 }
 
@@ -35,16 +33,8 @@ NevermoreDisplayUI mk(NevermoreDisplayUI (*fn)()) {
 
 }  // namespace
 
-NevermoreDisplayUI classic() {
-    return mk(nevermore_ui_screen_circle_240_classic);
-}
-
 NevermoreDisplayUI small_plot() {
     return mk(nevermore_ui_screen_circle_240_small_plot);
-}
-
-NevermoreDisplayUI no_plot() {
-    return mk(nevermore_ui_screen_circle_240_no_plot);
 }
 
 }  // namespace nevermore::ui::circle_240
